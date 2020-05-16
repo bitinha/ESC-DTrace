@@ -1,0 +1,70 @@
+#!/usr/sbin/dtrace -qs
+
+#pragma D option quiet
+#pragma D option destructive
+
+
+BEGIN
+{
+	seconds = 5;
+}
+
+
+syscall::open:entry
+{
+	self->execname = execname;
+	self->pid = pid;
+	self->file = arg0;
+	self->flags = arg1;
+}
+
+
+syscall::open:return
+/substr(copyinstr(self->file), 0, 5) == "/etc/" && arg0 >= 0/
+{
+	@Success[pid, execname] = count();	
+}
+syscall::open:return
+/substr(copyinstr(self->file), 0, 5) == "/etc/" && (self->flags & ( 1 | 64 | 512 ))/
+{
+
+	@Create[pid, execname] = count();
+	
+}
+syscall::open:return
+/substr(copyinstr(self->file), 0, 5) == "/etc/" && !(self->flags & ( 1 | 64 | 512 ))/
+{
+
+	@Open[pid, execname] = count();
+	
+}
+
+syscall::open:return
+{	
+	self->execname = 0;
+	self->pid = 0;
+	self->file = 0;
+	self->flags = 0;
+}
+
+profile:::tick-1sec
+/seconds != 0/
+{
+	seconds = seconds -1 ;
+}
+profile:::tick-1sec
+/seconds == 0/
+{
+	seconds = 5;
+	system("date");
+	printf("Tentativas de criação de um ficheiro:\n");
+	printa(@Create);
+   	trunc(@Create);
+	printf("Tentativas de abrir um ficheiro existente:\n");
+	printa(@Open);
+   	trunc(@Open);
+	printf("Sucessos:\n");
+	printa(@Success);
+   	trunc(@Success);
+}
+
