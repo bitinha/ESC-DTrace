@@ -2,11 +2,12 @@
 
 #pragma D option quiet
 #pragma D option destructive
-
+#pragma D option defaultargs
 
 BEGIN
 {
-	seconds = 5;
+	period = ($1 > 0) ? $1 : 5;
+	seconds = period;
 }
 
 
@@ -55,7 +56,7 @@ profile:::tick-1sec
 profile:::tick-1sec
 /seconds == 0/
 {
-	seconds = 5;
+	seconds = period;
 	system("date");
 	printf("Tentativas de criação de um ficheiro:\n");
 	printa(@Create);
