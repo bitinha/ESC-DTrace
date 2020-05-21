@@ -1,5 +1,6 @@
 #!/usr/sbin/dtrace -qs
 
+
 BEGIN
 {
 	globalTime = 0;
@@ -13,28 +14,45 @@ syscall:::entry
 	self->time = timestamp;
 }
 
-
+syscall:::return
+/pid == $target && arg0 < 0/
+{
+	globalErrors++;
+	@errors[probefunc] = count();
+}
 
 syscall:::return
 /pid == $target/
 {
 	self->time = timestamp - self->time;
-	@timeI[probefunc] = sum(self->time/1000000000);			/* Parte inteira */
-	@timeD[probefunc] = sum((self->time/1000)%1000000);		/* Parte decimal */
-	@avgTime[probefunc] = avg(self->time/1000);
-	globalTime += self->time/1000;
+	self->time = self->time/1000;
+	@timeI[probefunc] = sum(self->time);			/* Parte inteira */
+	@timeD[probefunc] = sum((self->time));		/* Parte decimal */
+	@avgTime[probefunc] = avg(self->time);
+	@percD[probefunc] = sum(self->time);
+	@percI[probefunc] = sum(self->time);
+	globalTime += self->time;
 	self->time = 0;
+	calls++;
 }
 
 END
 {
 	printf("\n%% time     seconds  usecs/call     calls    errors syscall\n------ ----------- ----------- --------- --------- ----------------\n");
-
-	printa("%@6d %@4d.%@06d %@11d %s\n",
-         @calls,
+	normalize(@timeI,1000000);
+	normalize(@percI,globalTime/100);
+	normalize(@percD,globalTime/10000);
+	printa("%@06d\033[6D%@3d.\033[2C %@011d\033[11D%@4d.\033[6C %@11d %@9d %@9.0d  %s\n",
+         @percD,
+	 @percI,
+	 @timeD,
          @timeI,
-         @timeD,
-         @avgTime);
+	 @avgTime,
+	 @calls,
+	 @errors);
     printf("------ ----------- ----------- --------- --------- ----------------\n");
-    printf("%d",globalTime);
+    
+	
+	printf("100.00 %4d.%06d             %9d %9d total",globalTime/1000000,globalTime%1000000,calls,globalErrors);
 }
+

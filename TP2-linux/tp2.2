@@ -11,36 +11,36 @@ BEGIN
 }
 
 
-syscall::openat:entry
+syscall::open:entry
 {
 	self->execname = execname;
 	self->pid = pid;
-	self->file = arg1;
-	self->flags = arg2;
+	self->file = arg0;
+	self->flags = arg1;
 }
 
 
-syscall::openat:return
-/ arg0 >= 0/
+syscall::open:return
+/substr(copyinstr(self->file), 0, 5) == "/etc/" && arg0 >= 0/
 {
 	@Success[pid, execname] = count();	
 }
-syscall::openat:return
-/self->flags & ( 1 | 256 | 512 | 8 )/
+syscall::open:return
+/substr(copyinstr(self->file), 0, 5) == "/etc/" && (self->flags & ( 1 | 64 | 512 ))/
 {
 
 	@Create[pid, execname] = count();
 	
 }
-syscall::openat:return
-/ !(self->flags & ( 1 | 256 | 512 | 8 ))/
+syscall::open:return
+/substr(copyinstr(self->file), 0, 5) == "/etc/" && !(self->flags & ( 1 | 64 | 512 ))/
 {
 
 	@Open[pid, execname] = count();
 	
 }
 
-syscall::openat:return
+syscall::open:return
 {	
 	self->execname = 0;
 	self->pid = 0;
@@ -57,7 +57,6 @@ profile:::tick-1sec
 /seconds == 0/
 {
 	seconds = period;
-	printf("--------------------------------------------\n");
 	system("date");
 	printf("Tentativas de criação de um ficheiro:\n");
 	printa(@Create);
@@ -69,5 +68,4 @@ profile:::tick-1sec
 	printa(@Success);
    	trunc(@Success);
 }
-
 

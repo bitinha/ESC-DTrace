@@ -1,0 +1,40 @@
+#!/usr/sbin/dtrace -qs
+
+BEGIN
+{
+	globalTime = 0;
+}
+
+syscall:::entry
+/pid == $target/
+{
+
+	@calls[probefunc] = count();
+	self->time = timestamp;
+}
+
+
+
+syscall:::return
+/pid == $target/
+{
+	self->time = timestamp - self->time;
+	@timeI[probefunc] = sum(self->time/1000000000);			/* Parte inteira */
+	@timeD[probefunc] = sum((self->time/1000)%1000000);		/* Parte decimal */
+	@avgTime[probefunc] = avg(self->time/1000);
+	globalTime += self->time/1000;
+	self->time = 0;
+}
+
+END
+{
+	printf("\n%% time     seconds  usecs/call     calls    errors syscall\n------ ----------- ----------- --------- --------- ----------------\n");
+
+	printa("%@6d %@4d.%@06d %@11d %s\n",
+         @calls,
+         @timeI,
+         @timeD,
+         @avgTime);
+    printf("------ ----------- ----------- --------- --------- ----------------\n");
+    printf("%d",globalTime);
+}
