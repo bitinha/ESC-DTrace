@@ -25,7 +25,6 @@ syscall:::return
 /pid == $target/
 {
 	self->time = timestamp - self->time;
-	self->time = self->time/1000;
 	@timeI[probefunc] = sum(self->time);			/* Parte inteira */
 	@timeD[probefunc] = sum((self->time));		/* Parte decimal */
 	@avgTime[probefunc] = avg(self->time);
@@ -39,20 +38,22 @@ syscall:::return
 END
 {
 	printf("\n%% time     seconds  usecs/call     calls    errors syscall\n------ ----------- ----------- --------- --------- ----------------\n");
-	normalize(@timeI,1000000);
+	normalize(@timeI,1000000000);
 	normalize(@percI,globalTime/100);
 	normalize(@percD,globalTime/10000);
-	printa("%@06d\033[6D%@3d.\033[2C %@011d\033[11D%@4d.\033[6C %@11d %@9d %@9.0d  %s\n",
-         @percD,
+	normalize(@timeD,1000);
+	normalize(@avgTime,1000);
+	printa("%@06d\033[6D%@3d.\033[2C %@011d\033[11D%@4d.\033[6C %@11d %@9d %@9.0d %s\n",
+	 @percD,
 	 @percI,
 	 @timeD,
-         @timeI,
+	 @timeI,
 	 @avgTime,
 	 @calls,
 	 @errors);
     printf("------ ----------- ----------- --------- --------- ----------------\n");
     
 	
-	printf("100.00 %4d.%06d             %9d %9d total",globalTime/1000000,globalTime%1000000,calls,globalErrors);
+	printf("100.00 %4d.%06d             %9d %9d total",globalTime/1000000000,globalTime/1000%1000000,calls,globalErrors);
 }
 
