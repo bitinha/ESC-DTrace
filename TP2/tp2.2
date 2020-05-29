@@ -26,14 +26,14 @@ syscall::openat:return
 	@Success[pid, execname] = count();	
 }
 syscall::openat:return
-/self->flags & ( 1 | 256 | 512 | 8 )/
+/(self->flags & 1) && (self->flags & 256) && ( self->flags & 512)/
 {
 
 	@Create[pid, execname] = count();
 	
 }
 syscall::openat:return
-/ !(self->flags & ( 1 | 256 | 512 | 8 ))/
+/ !((self->flags & 1) && (self->flags & 256) && (self->flags & 512))/
 {
 
 	@Open[pid, execname] = count();
