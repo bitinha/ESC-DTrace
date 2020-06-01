@@ -1,11 +1,15 @@
 #!/usr/sbin/dtrace -s
 
+#pragma D option quiet
+
+BEGIN
+{
+	printf(" Executavel |  PID  |  UID  |  GID  | Ficheiro a abrir             | Ret | Flags\n");
+	printf("------------------------------------------------------------------------------------\n")
+}
+
 syscall::openat:entry
 {
-	self->execname = execname;
-	self->pid = pid;
-	self->uid = uid;
-	self->gid = gid;
 	self->file = arg1;
 	self->flags = arg2;
 }
@@ -15,15 +19,20 @@ syscall::openat:return
 /self->file != 0 && substr(copyinstr(self->file), 0, 5) == "/etc/"/
 {
 
-	printf("%s %d %d %d %s %d %d", self->execname,self->pid,self->uid, self->gid, copyinstr(self->file), self->flags, arg0); 
+	self->openMode = (!(self->flags & 3)) ? "O_RDONLY" : "";
+	self->openMode = (self->flags & 1) ? "O_WRONLY" : self->openMode;
+	self->openMode = (self->flags & 2) ? "O_RDWR" : self->openMode;
+	self->ap = (self->flags & 8) ? " | O_APPEND" : "";
+	self->cr = (self->flags & 256) ? " | O_CREAT" : "";
+
+	printf(" %-11.11s  %5d   %5d   %5d   %-30.30s %3d  %s%s%s\n", execname,pid,uid,gid, copyinstr(self->file),arg0, self->openMode, self->ap,self->cr); 
+	self->openMode = "";
+	self->ap = "";
+	self->cr = "";
 }
 
 syscall::openat:return
 {
-	self->execname = 0;
-	self->pid = 0;
-	self->uid = 0;
-	self->gid = 0;
 	self->file = 0;
 	self->flags = 0;
 }	
