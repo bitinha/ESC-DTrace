@@ -58,7 +58,8 @@ profile:::tick-1sec
 {
 	seconds = period;
 	printf("--------------------------------------------\n");
-	system("date");
+	/*system("date");*/
+	printf("%Y\n",walltimestamp);
 	printf("Tentativas de criação de um ficheiro:\n");
 	printa(@Create);
    	trunc(@Create);
