@@ -16,7 +16,7 @@ syscall:::entry
 }
 
 syscall:::return
-/pid == $target && arg0 < 0/
+/pid == $target && errno != 0/
 {
 	globalErrors++;
 	@errors[probefunc] = count();

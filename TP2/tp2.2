@@ -21,7 +21,7 @@ syscall::openat:entry
 
 
 syscall::openat:return
-/ arg0 >= 0/
+/ errno == 0/
 {
 	@Success[pid, execname] = count();	
 }
