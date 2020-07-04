@@ -13,6 +13,7 @@
               // nº de linhas = 512
               
 #include <pthread.h>
+#include "ddt.h"
 
 int thread_count;  
 pthread_barrier_t barrier;
@@ -79,6 +80,10 @@ void *dt(void* arg){
 
     //Passo 1
 
+
+    if(DTGET_QUERY_PRIMEIROPASSO_ENABLED())
+       DTGET_QUERY_PRIMEIROPASSO();
+
     // Preencher distancias no 1º bloco
     for (int y = i_width; y < f_width; y++) {
         if (img[y] == 0) {
@@ -127,6 +132,10 @@ void *dt(void* arg){
 
     //Passo 2
     
+
+    if (DTGET_QUERY_SEGUNDOPASSO_ENABLED())
+        DTGET_QUERY_SEGUNDOPASSO();
+
     // Preencher distancias no 1º bloco (bloco de baixo)
     for (int y = i_width; y < f_width; y++) {
 
@@ -160,6 +169,11 @@ void *dt(void* arg){
 
     pthread_barrier_wait (&barrier);
 
+
+    if (DTGET_QUERY_TERCEIROQUARTOPASSO_ENABLED())
+        DTGET_QUERY_TERCEIROQUARTOPASSO();
+
+
     for (int x = i_height; x < f_height; x++) {
 
         //Passo 3
@@ -176,6 +190,10 @@ void *dt(void* arg){
             }
         }
     }   
+
+
+    if(DTGET_QUERY_FIM_ENABLED())
+       DTGET_QUERY_FIM();
 
     return NULL;
     
@@ -263,6 +281,9 @@ int main(int argc, char const *argv[]){
     printf("%f\n", time);
 
 
+    if(DTGET_QUERY_MAXENTRY_ENABLED())
+       DTGET_QUERY_MAXENTRY(g,width*height);
+
     for (thread = 0; thread < thread_count; thread++)  {
         pthread_create(&thread_handles[thread], NULL,
           encontraMax, (void*) &(tdata[thread]));  
@@ -274,9 +295,14 @@ int main(int argc, char const *argv[]){
         pthread_join(thread_handles[thread], NULL);
         if(tdata[thread].max > max) max = tdata[thread].max ;
     }
+        if(DTGET_QUERY_MAXRETURN_ENABLED())
+       DTGET_QUERY_MAXRETURN(max);
 printf("%d\n", max);
     divisor = 255.0/max;
 
+    
+    if(DTGET_QUERY_TRANSFORMENTRY_ENABLED())
+       DTGET_QUERY_TRANSFORMENTRY();
 
     for (thread = 0; thread < thread_count; thread++)  
         pthread_create(&thread_handles[thread], NULL,
@@ -287,6 +313,8 @@ printf("%d\n", max);
         pthread_join(thread_handles[thread], NULL); 
 
 
+    if(DTGET_QUERY_TRANSFORMRETURN_ENABLED())
+       DTGET_QUERY_TRANSFORMRETURN();
 
     free(thread_handles);
     free(tdata);

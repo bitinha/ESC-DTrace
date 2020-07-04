@@ -9,6 +9,8 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 
+#include "ddt.h"
+
 //Otimização para aproveitar a localidade espacial ao percorrer as linhas
 #define bs 4  //L1d SIZE = 32KiB; int = 4B; ints que cabem na cache = 8192; Assumindo o tamanho de linha da cache como 64B, 16 ints por linha
 // nº de linhas = 512
@@ -46,6 +48,9 @@ void dt_p1(unsigned char *img, unsigned int *g, int width, int height, int my_ra
 
 
     //Passo 1
+
+    if(DTGET_QUERY_PRIMEIROPASSO_ENABLED())
+       DTGET_QUERY_PRIMEIROPASSO();
 
     // Preencher distancias no 1º bloco
     for (int y = i_width; y < f_width; y++) {
@@ -91,6 +96,8 @@ void dt_p1(unsigned char *img, unsigned int *g, int width, int height, int my_ra
 
     //Passo 2
 
+    if (DTGET_QUERY_SEGUNDOPASSO_ENABLED())
+        DTGET_QUERY_SEGUNDOPASSO();
     // Preencher distancias no 1º bloco (bloco de baixo)
     for (int y = i_width; y < f_width; y++) {
 
@@ -127,7 +134,8 @@ void dt_p2(unsigned int *g, int width, int height, int my_rank, int thread_count
 
     int f_height = (my_rank != thread_count - 1) ? i_height + height / thread_count : i_height + height / thread_count +
                                                                                       height % thread_count;
-
+    if (DTGET_QUERY_TERCEIROQUARTOPASSO_ENABLED())
+        DTGET_QUERY_TERCEIROQUARTOPASSO();
     for (int x = i_height; x < f_height; x++) {
 
         //Passo 3
@@ -144,6 +152,9 @@ void dt_p2(unsigned int *g, int width, int height, int my_rank, int thread_count
             }
         }
     }
+
+    if(DTGET_QUERY_FIM_ENABLED())
+       DTGET_QUERY_FIM();
 }
 
 void transformaGS(unsigned char *__restrict__ img, unsigned int *__restrict__ out, int N, double divisor, int my_rank, int thread_count) {
@@ -158,8 +169,10 @@ void transformaGS(unsigned char *__restrict__ img, unsigned int *__restrict__ ou
 
 int main(int argc, char const *argv[]) {
     int width, height, channels;
-    unsigned int THREADS_NUMBER = std::thread::hardware_concurrency();
-    std::thread threads[4];
+    //unsigned int THREADS_NUMBER = std::thread::hardware_concurrency();
+    unsigned int THREADS_NUMBER = strtol(argv[2], NULL, 10);  
+
+    std::thread threads[THREADS_NUMBER];
 
     if (argc < 2) {
         std::cout << "Indique uma imagem" << std::endl;
@@ -181,7 +194,6 @@ int main(int argc, char const *argv[]) {
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     for (unsigned int i = 0; i < THREADS_NUMBER; ++i) {
-        // Initialize each thread with the function responsible of multiplying only a part of the matrices
         threads[i] = std::thread(dt_p1, img, g, width, height, i, THREADS_NUMBER);
     }
 
@@ -191,7 +203,6 @@ int main(int argc, char const *argv[]) {
     }
 
     for (unsigned int i = 0; i < THREADS_NUMBER; ++i) {
-        // Initialize each thread with the function responsible of multiplying only a part of the matrices
         threads[i] = std::thread(dt_p2, g, width, height, i, THREADS_NUMBER);
     }
 
@@ -200,11 +211,11 @@ int main(int argc, char const *argv[]) {
         threads[i].join();
     }
 
-
+    if(DTGET_QUERY_MAXENTRY_ENABLED())
+       DTGET_QUERY_MAXENTRY(g,width*height);
     unsigned int max = 0;
     
     for (unsigned int i = 0; i < THREADS_NUMBER; ++i) {
-        // Initialize each thread with the function responsible of multiplying only a part of the matrices
         threads[i] = std::thread(encontraMax, g, width * height, &max, i, THREADS_NUMBER);
     }
 
@@ -214,11 +225,16 @@ int main(int argc, char const *argv[]) {
     }
 
     
+    if(DTGET_QUERY_MAXRETURN_ENABLED())
+       DTGET_QUERY_MAXRETURN(max);
     std::cout << "Max: " << max << std::endl;
     double divisor = 255.0/max;
 
+
+    if(DTGET_QUERY_TRANSFORMENTRY_ENABLED())
+       DTGET_QUERY_TRANSFORMENTRY();
+
     for (unsigned int i = 0; i < THREADS_NUMBER; ++i) {
-        // Initialize each thread with the function responsible of multiplying only a part of the matrices
         threads[i] = std::thread(transformaGS, img, g, width * height, divisor, i, THREADS_NUMBER);
     }
 
@@ -226,6 +242,9 @@ int main(int argc, char const *argv[]) {
         // Wait until each thead has finished
         threads[i].join();
     }
+
+    if(DTGET_QUERY_TRANSFORMRETURN_ENABLED())
+       DTGET_QUERY_TRANSFORMRETURN();
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << " µs" << std::endl;
